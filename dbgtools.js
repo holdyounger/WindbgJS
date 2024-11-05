@@ -106,15 +106,19 @@ function read_addr_arch(addr)
  
 function dbgtools()
 {
-    CallPrintf("1. JavaScript plugin Contents:", "dbgtools", "dx Debugger.State.Scripts.dbgtools.Contents");
-    CallPrintf("2. Bind this JavaScripts to ", "@$dbgtool", "dx @$dbgtool = Debugger.State.Scripts.dbgtools.Contents");
-    CallPrintf("3. Analyze NdrClientCall2", "!NdrClientCall2()", "!NdrClientCall2", "Stack");
-    CallPrintf("4. Analyze Consent Parameters", "!consentparse()", "!consentparse", 
-    "");
-    Logln("\tSupport Function:\n\t" + 
-    "4.1. !consentparse(Address) \n\t" +
-    "4.2. AiLaunchProcess(x64)\n\t" + 
-    "4.3. CuiGetTokenForApp(x64)");
+    CallPrintf("#1. JavaScript plugin Contents:", "dbgtools", "dx Debugger.State.Scripts.dbgtools.Contents");
+    CallPrintf("#2. Bind this JavaScripts to ", "@$dbgtool", "dx @$dbgtool = Debugger.State.Scripts.dbgtools.Contents");
+
+    Logln("#3. Analyze Rpc Parameters:")
+        CallPrintf("\t3.1. NdrClientCall2 Function:", "!NdrClientCall2()", "!NdrClientCall2", "");
+        CallPrintf("\t3.2. NdrServerCall2 Function:", "!NdrServerCall2()", "!NdrServerCall2", "");
+    
+    Logln("#4. Analyze Consent Parameters,Support Function:");
+        CallPrintf("\t4.1. Parameters Address:", "!consentparse(Address)", "!consentparse", "");
+        CallPrintf("\t4.2. Function:", "AiLaunchProcess[x64]", "!consentparse", "");
+        CallPrintf("\t4.3. Function:", "CuiGetTokenForApp[x64]", "!consentparse", "");
+
+    CallPrintf("#5. Analyze class rpcss!CProcess:", "!CProcess(Address)", "!CProcess", "");
 }
  
 function initializeScript()
@@ -124,26 +128,12 @@ function initializeScript()
  
     return [
             new host.apiVersionSupport(1, 9),
-            new host.functionAlias(
-                dbgtools,
-                'dbgtools'
-            ),
-            new host.functionAlias(
-                appinfo_SUT_CONSENTUI_PARAM_HEADER,
-                'consentparse'
-            ),
-            new host.functionAlias(
-                NdrClientCall2,
-                'NdrClientCall2'
-            ),
-            new host.functionAlias(
-                NdrServerCall2,
-                'NdrServerCall2'
-            ),
-            new host.functionAlias(
-                CProcess,
-                'CProcess'
-            )
+            new host.functionAlias(dbgtools, 'dbgtools'),
+            new host.functionAlias(appinfo_SUT_CONSENTUI_PARAM_HEADER, 'consentparse'),
+            new host.functionAlias(NdrClientCall2, 'NdrClientCall2'),
+            new host.functionAlias(RpcInvoke, 'RpcInvoke'),
+            new host.functionAlias(NdrServerCall2, 'NdrServerCall2'),
+            new host.functionAlias(CProcess, 'CProcess')
         ];
 }
  
@@ -200,34 +190,82 @@ function CProcess(Addr) {
     let ctl = host.namespace.Debugger.Utility.Control;
 
     if(Addr != null) {
-        PreaseCProcess(Addr);
+        ParseCProcess(Addr);
     }
     else {
         var cuiHeaderAddr = 0;
         if(breakpoint.toString().includes("!CBList::Insert")) {
-            PreaseCProcess(Regs.rdx);
+            ParseCProcess(Regs.rdx);
         }
     }
 }
 
-let PreaseCProcess = function(Addr) {
+let ParseCProcess = function(Addr) {
     var base = parseInt(Addr, 16);
     var offset = 0;
     var addr = base;
 
     Logln("CProcess:");
 
-    offset = 16*0, addr = base+offset;
-    var vftable = read_u32(addr);
-    CallPrintf("  [+"+Hex(offset)+"] vftable:", "dt rpcss!CProcess::`vftable'" + Hex(vftable),
+    offset = 8*0, addr = base+offset;
+    var vftable = read_u64(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] vftable:", "dqs " + Hex(vftable),
         "", Hex(addr));
 
-    offset = 16*3, addr = base+offset;
-    var lpExePath = read_u32(addr);
-    Logln("lpExePath:" + Hex(lpExePath));
+    offset = 8*3, addr = base+offset;
+    var CToken = read_u64(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] CToken:", "dt CToken " + Hex(CToken),
+        "", Hex(addr));
+
+    offset = 8*4, addr = base+offset;
+    var desktopInfo = read_u64(addr);
+    var desktopInfoPath = ReadWstring(desktopInfo);
+    CallPrintf("\t[+"+Hex(offset)+"] desktopInfo:",
+        "du " + Hex(desktopInfo),
+        "",
+        Hex(addr));
+        Logln("\t\t-->" + desktopInfoPath);
+
+    offset = 8*13, addr = base+offset;
+    var uuid = read_u64(addr);
+    var desktopInfoPath = ReadWstring(desktopInfo);
+    CallPrintf("\t[+"+Hex(offset)+"] uuid:",
+        "dt _GUID " + Hex(addr),
+        "",
+        Hex(addr));
+    
+    offset = 8*15, addr = base+offset;
+    var ClientProcess = read_u64(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] ClientProcess:", "!handle " + Hex(ClientProcess),
+        "", Hex(addr));
+
+    offset = 8*16, addr = base+offset;
+    var lpfiletime = read_u64(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] lpFileTime:", "dt LPFILETIME " + Hex(addr),
+        "", Hex(addr));
+
+    offset = 8*48, addr = base+offset;
+    var lpExePath = read_u64(addr);
     var ExePath = ReadWstring(lpExePath);
-    CallPrintf("  [+"+Hex(offset)+"] lpExePath:", ExePath, 
-        "du'" + Hex(lpExePath), Hex(lpExePath));
+    CallPrintf("\t[+"+Hex(offset)+"] lpExePath:",  
+        "du'" + Hex(lpExePath), 
+        "",
+        Hex(lpExePath));
+        Logln("\t\t-->" + ExePath);
+
+    offset = 8*51, addr = base+offset;
+    var mid_stub_desc = read_u64(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] mid_stub_desc:",
+        "dt __MIDL_ILocalObjectExporter_0001 " + Hex(mid_stub_desc),
+        "", Hex(addr));
+
+
+    offset = 8*107, addr = base+offset;
+    var architecture = read_u32(addr);
+    CallPrintf("\t[+"+Hex(offset)+"] architecture:",
+        "dd architecture " + Dec(architecture) + " l1",
+        "", Hex(addr));
+
 
 }
 
@@ -458,8 +496,16 @@ let dealNdrServerCall2 = function(RPC_MESSAGE, PORT_MESSAGE, bLog = false) {
     var ctl = host.namespace.Debugger.Utility.Control;
     var CallInfo = "";
 
-    ctl.ExecuteCommand("dt _RPC_MESSAGE "+ Hex(RPC_MESSAGE) ,false);
-    ctl.ExecuteCommand("dt _PORT_MESSAGE "+ Hex(PORT_MESSAGE) ,false);
+    if(RPC_MESSAGE) {
+        ctl.ExecuteCommand("dt _RPC_MESSAGE "+ Hex(RPC_MESSAGE) ,false);
+    }
+    if(PORT_MESSAGE) {
+        ctl.ExecuteCommand("dt _PORT_MESSAGE "+ Hex(PORT_MESSAGE) ,false);
+        
+        ctl.ExecuteCommand("dt _CLIENT_ID "+ Hex(PORT_MESSAGE+0x8) ,false);
+
+
+    }
 
     // para1
     CallInfo += dealStub(RPC_MESSAGE+0x28, false);
@@ -473,6 +519,14 @@ let dealNdrServerCall2 = function(RPC_MESSAGE, PORT_MESSAGE, bLog = false) {
 // dx @$dbgtools = Debugger.State.Scripts.dbgtools.Contents
 // dx @$dbgtools.NdrClientCall2()
 // bu RPCRT4!Invoke+0x73-2d "u r10 l5;gc"
+function RpcInvoke(bEnable)
+{
+    let ctl = host.namespace.Debugger.Utility.Control;
+    if(bEnable) {
+        ctl.ExecuteCommand(`bu RPCRT4!Invoke+0x73-2d ".echo 'rpcrt4!Invoke Function:'; r @r10; u r10 l5;gc"`)
+    }
+}
+
 function NdrClientCall2(midlAddr, strAddr, bLog = true)
 {
     var ctl = host.namespace.Debugger.Utility.Control;
@@ -491,8 +545,8 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
 
     if(midlAddr != null)
     {
-        _MIDL_STUB_DESC = midlAddr;
-        lclor__MIDL_ProcFormatString = strAddr;
+        _MIDL_STUB_DESC = parseInt(midlAddr);
+        lclor__MIDL_ProcFormatString = parseInt(strAddr);
     }
     else
     {
@@ -522,6 +576,14 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
         var para2 = 0;
 
         const Frames = Array.from(host.currentThread.Stack.Frames);
+        for(const [Idx, Frame] of Frames.entries()) {
+            if(Frame.toString().includes("RPCRT4!NdrClientCall2+0x1f")) {
+                var reqFun = Frames[Idx+1].toString().split('+');
+                CallPrintf("\t[RPC] Request Function:" , Frames[2], "x " + reqFun[0]);
+                break;
+            }
+        }
+
         for(const [Idx, Frame] of Frames.entries()) {
             // host.diagnostics.debugLog(">>> Stack Entry -> " + Idx + ":  " + Frame + " \n");
             if(Frame.toString().includes("RPCRT4!NdrClientCall4")) {
@@ -564,6 +626,7 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
                 break;
             } else if(breakpoint.toString().includes("NdrServerCall2")) {
                 _MIDL_STUB_DESC = Regs.rcx + 0x28;
+                break;
             }
         }
         
