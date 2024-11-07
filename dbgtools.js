@@ -8,7 +8,16 @@ const Log = host.diagnostics.debugLog;
 const Logln = p => host.diagnostics.debugLog(p + '\n');
 const Hex = p => '0x' + p.toString(16);
 const Dec = p => '0n' + p.toString(10);
-const ReadWstring = p => host.memory.readWideString(p);
+
+function ReadWstring(Address) {
+    let Value = null;
+    try {
+        Value = host.memory.readWideString(Address);
+    } catch(e) {
+        return "";
+    }
+    return Value;
+}
 
 function ReadShort(Address) {
     let Value = null;
@@ -83,12 +92,14 @@ function read_u16(addr) {
 }
  
 function read_u32(addr) {
-    return host.memory.readMemoryValues(addr, 1, 4)[0];
+    try {
+        return host.memory.readMemoryValues(addr, 1, 4)[0];
+    } catch (e){ return 0; }
 }
 
 function read_handle(addr)
 {
-    return read_u16(addr);
+    try {return read_u16(addr);} catch(e) {return 0;}
 }
  
 function read_u64(addr) {
@@ -332,11 +343,16 @@ function RPCSS_connect() {
 // !consentparam
 let ParseCuiHeader = function(Addr)
 {
+    var ctl = host.namespace.Debugger.Utility.Control;
     var base = parseInt(Addr, 16);
     var offset = 0;
     var addr = base;
 
     Logln("_CONSENTUI_PARAM_HEADER:")
+
+    offset = 16*0.25, addr = base+offset;
+    var nSQMEventFlag = read_u32(addr);
+    CallPrintf("  [+"+Hex(offset)+"] nSQMEventFlag:", Hex(nSQMEventFlag), "", Hex(addr));
 
     offset = 16*0.5, addr = base+offset;
     var nSecFlag = read_u32(addr);
@@ -370,15 +386,20 @@ let ParseCuiHeader = function(Addr)
     var nConsentFlag = read_u32(addr);
     CallPrintf("  [+"+Hex(offset)+"] nConsentFlag:", Hex(nConsentFlag), "", Hex(addr));
 
+    offset = 16*3.5, addr = base+offset;
+    var ReBackHandle = read_handle(addr);
+    CallPrintf("  [+"+Hex(offset)+"] !!!ReBackHandle:", "!handle " + Hex(ReBackHandle), "", Hex(addr));
+
+    offset = 16*5.5, addr = base+offset;
+    var pRequestExe = read_u64(addr);
+    var pstrRequestName = ReadWstring(pRequestExe);
+    CallPrintf("  [+"+Hex(offset)+"] pRequestExe:", "du " + Hex(pRequestExe), "", Hex(addr));
+        Logln("    --> " + pstrRequestName);
+
     offset = 16*6, addr = base+offset;
     var lpGuid = (addr);
+    var outputGuid = ctl.ExecuteCommand("dt _GUID " + Hex(lpGuid));
     CallPrintf("  [+"+Hex(offset)+"] lpGuid:", "dt _GUID " + Hex(lpGuid), "", Hex(addr));
-
-    Logln("  -------");
-
-    offset = 16*6, addr = base+offset;
-    var ReBackHandle = read_handle(addr);
-    CallPrintf("  [+"+Hex(offset)+"] ReBackHandle:", "!handle " + Hex(ReBackHandle), "", Hex(addr));
 
     {
         offset = 16*7;
@@ -411,8 +432,8 @@ let ParseCuiHeader = function(Addr)
     CallPrintf("  [+"+Hex(offset)+"] dialogflag:", Hex(dialogflag), "", Hex(addr));
     
     offset = 16*12, addr = base+offset;
-    var pEventHandle = read_handle(addr);
-    CallPrintf("  [+"+Hex(offset)+"] pEventHandle:", "!handle " + Hex(pEventHandle), "", Hex(addr));
+    var pExtendName = ReadWstring(addr);
+    CallPrintf("  [+"+Hex(offset)+"] pExtendName:", pExtendName, "", Hex(addr));
 }
 
 function appinfo_SUT_CONSENTUI_PARAM_HEADER(Addr)
@@ -428,17 +449,18 @@ function appinfo_SUT_CONSENTUI_PARAM_HEADER(Addr)
     else
     {
         var cuiHeaderAddr = 0;
-        if(breakpoint.toString().includes("!AiLaunchProcess"))
-        {
+        if(breakpoint.toString().includes("!AiLaunchProcess")) {
             let bufferAddr = Regs.rbp + 0x40;
 
             var bufferStr = ReadWstring(bufferAddr);
             Logln("ConsentUI Input Paras> " + bufferStr.toString());
             cuiHeaderAddr = bufferStr.split(' ')[3];
             CallPrintf("", "dd " + Hex(cuiHeaderAddr), "", "");
-        }
-        else if(breakpoint.toString().includes("!CuiGetTokenForApp"))
-        {
+        } else if(breakpoint.toString().includes("!CuiGetTokenForApp")) {
+            let bufferAddr = Regs.rdx;
+            Logln("ConsentUI Input Paras> " + Hex(bufferAddr));
+            cuiHeaderAddr = bufferAddr;
+        } else if(breakpoint.toString().includes("!AiLaunchConsentUI")) {
             let bufferAddr = Regs.rdx;
             Logln("ConsentUI Input Paras> " + Hex(bufferAddr));
             cuiHeaderAddr = bufferAddr;
@@ -446,7 +468,7 @@ function appinfo_SUT_CONSENTUI_PARAM_HEADER(Addr)
 
         if(cuiHeaderAddr != 0)
         {
-            ParseCuiHeader((cuiHeaderAddr));
+            ParseCuiHeader(cuiHeaderAddr);
         }
     }
 }
@@ -535,7 +557,7 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
 
     if(host.currentProcess.Attributes.CommandLine.toString().includes("vmtoolsd.exe"))
     {
-        ctl.ExecuteCommand("g");
+        ctl.ExecuteCommand("g", false);
         return;
     }
 
@@ -576,19 +598,29 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
         var para2 = 0;
 
         const Frames = Array.from(host.currentThread.Stack.Frames);
+        var reqFun;
         for(const [Idx, Frame] of Frames.entries()) {
             if(Frame.toString().includes("RPCRT4!NdrClientCall2+0x1f")) {
-                var reqFun = Frames[Idx+1].toString().split('+');
-                CallPrintf("\t[RPC] Request Function:" , Frames[2], "x " + reqFun[0]);
+                reqFun = Frames[Idx+1].toString().split('+');
                 break;
             }
+
+            if(Frame.toString().includes("RPCRT4!NdrClientCall2")) {
+                if(Frames[Idx+1].toString().includes("RPCRT4!NdrClientCall4")) {
+                    reqFun = Frames[2].toString().split('+');
+                } else {
+                    reqFun = Frames[Idx+1].toString().split('+');
+                }
+            }
         }
+
+        if(reqFun) CallPrintf("\t[RPC] Request Function:" , reqFun[0], "x " + reqFun[0]);
 
         for(const [Idx, Frame] of Frames.entries()) {
             // host.diagnostics.debugLog(">>> Stack Entry -> " + Idx + ":  " + Frame + " \n");
             if(Frame.toString().includes("RPCRT4!NdrClientCall4")) {
                 var reqFun = Frames[2].toString().split('+');
-                CallPrintf("\t[RPC] Request Function:" , Frames[2], "x " + reqFun[0]);
+                CallPrintf("\t[RPC] Request Function:" , reqFun[0], "x " + reqFun[0]);
                 para1 = Regs.ebp + 8;
                 para2 = Regs.ebp + 12;
                 _MIDL_STUB_DESC = read_u32(para1);
@@ -654,13 +686,23 @@ let dealNdrClientCall2 = function(bLog, addr_stub, addr_fmtStr = 0) {
     var ctl = host.namespace.Debugger.Utility.Control;
     var CallInfo = "";
 
+    // Logln("_MIDL_STUB_DESC:" + Hex(addr_stub));
     // para1
     CallInfo += dealStub(addr_stub);
 
+    // Logln("lclor__MIDL_ProcFormatString:" + Hex(addr_fmtStr));
     // para2
     CallInfo += dealFormat(addr_fmtStr);
  
     Logln("\t[RPC] GUID&Procederes:" + CallInfo);
+
+    if( CallInfo.includes("367abb81-9844-35f1-ad32-98f038001003") ||
+        CallInfo.includes("{e60c73e6-88f9-11cf-9af1-0020af6e72f4}:7") ||
+        CallInfo.includes("{e60c73e6-88f9-11cf-9af1-0020af6e72f4}:4") || // combase!BulkUpdateOIDs
+        CallInfo.includes("{00000132-0000-0000-c000-000000000046}:4") // rpcss!CServerListEntry::CallServer
+        ) {
+        ctl.ExecuteCommand("g", false);
+    }
 }
 
 let dealStub = function(addr_stub, bLogCaller = true, bLog = false) {
@@ -669,10 +711,11 @@ let dealStub = function(addr_stub, bLogCaller = true, bLog = false) {
     if(addr_stub != undefined) {
         // Logln("addr_stub:" + Hex(addr_stub));
         var addr_rpc_interface = Is32BitOr64Bit(addr_stub) ? read_u32(addr_stub) : read_u64(addr_stub);
+        Logln("addr_rpc_interface:" + Hex(addr_rpc_interface));
         var RpcInterfaceInformation = read_u32(addr_rpc_interface);
 
         if(RpcInterfaceInformation == 0) {
-            Logln("Empty RpcInterfaceInformation");
+            Logln("RpcInterfaceInformation is NULL");
             ctl.ExecuteCommand("g;", false);
             return;
         }
@@ -715,8 +758,7 @@ let dealStub = function(addr_stub, bLogCaller = true, bLog = false) {
             + "\n\t\tPID:"+ host.currentProcess.Id 
             + "\n\t\tCommand:"+host.currentProcess.Attributes.CommandLine);
         
-        CallPrintf("\t[RPC]", 
-        "GUID", command, "");
+        // CallPrintf("\t[RPC]", "GUID", command, "");
      } else {
         Logln("RpcInterfaceInformation(_MIDL_STUB_DESC) is NULL,Parameter is: ");
         CallPrintf("_MIDL_STUB_DESC \t\t",
@@ -733,6 +775,7 @@ let dealStub = function(addr_stub, bLogCaller = true, bLog = false) {
 let dealFormat = function(addr_fmtStr, bLog = false) {
     var ctl = host.namespace.Debugger.Utility.Control;
     var CallInfo = "";
+    var value = read_u32(addr_fmtStr)
     if(addr_fmtStr != 0) {
         var Format = addr_fmtStr;
         if(bLog) {
@@ -776,7 +819,7 @@ let dealFormat = function(addr_fmtStr, bLog = false) {
 
         CallInfo += proc_num.toString(10);
     } else {
-            Logln("addr_fmtStr2:" + Hex(addr_fmtStr));
+        Logln("addr_fmtStr2 is NULL:" + Hex(addr_fmtStr));
     }
 
     return CallInfo;
