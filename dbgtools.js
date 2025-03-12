@@ -617,6 +617,14 @@ function NdrClientCall2(midlAddr, strAddr, bLog = true)
         if(reqFun) CallPrintf("\t[RPC] Request Function:" , reqFun[0], "x " + reqFun[0]);
 
         for(const [Idx, Frame] of Frames.entries()) {
+            if(Frame.toString().includes("RPCRT4!NdrClientCall2+0x1f")) {
+                var reqFun = Frames[Idx+1].toString().split('+');
+                CallPrintf("\t[RPC] Request Function:" , Frames[2], "x " + reqFun[0]);
+                break;
+            }
+        }
+
+        for(const [Idx, Frame] of Frames.entries()) {
             // host.diagnostics.debugLog(">>> Stack Entry -> " + Idx + ":  " + Frame + " \n");
             if(Frame.toString().includes("RPCRT4!NdrClientCall4")) {
                 var reqFun = Frames[2].toString().split('+');

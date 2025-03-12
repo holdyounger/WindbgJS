@@ -1,0 +1,11 @@
+<DmlText># 进程信息
+!process 0 0 explorer.exe
+0: kd&gt; !process 0 0 explorer.exe
+PROCESS ffff8a0636863080
+    SessionId: 1  Cid: 1c08    Peb: <link alt=".process /p ffff8a0636863080; !peb 00800000" cmd=".process /p ffff8a0636863080; !peb 00800000"><u>00800000</u></link>  ParentCid: <link alt="!process 0ee4" cmd="!process 0ee4"><u>0ee4</u></link>
+    DirBase: 3d61e000  ObjectTable: ffffa103462d6e00  HandleCount: 3978.
+    Image: explorer.exe
+
+
+# 搜索字符串
+!SearchString("E:\\Documents\\Yakit")</DmlText>

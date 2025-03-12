@@ -7,10 +7,20 @@
 
 > The windbg javascriprs if you need
 
+## What
+
+- dbgtools.js is a Windbg JavaScripts for debugging Windows RPC.
+
 ## Usage
 
+1. Load Scripts
+```dbgcmd
+.scriptsload dbgtools.js
+```
+
+2. Init Helper
 ```sh
-!rpctools
+!dbgtools
 ```
 
 ## Author
