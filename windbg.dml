@@ -1,0 +1,65 @@
+<DmlText>sxr;!gflag -ksl
+!gflag +ksl;sxe cpr consent.exe;sxe ld consent.exe
+
+!process /m appinfo.dll 0 0 svchost.exe
+!process /m RpcEpMap.dll 0 0 svchost.exe
+
+!process 0 0 MasqueradePEBtoCopyfile.exe
+
+CuiGetContextInformation
+
+!consentparse(0x000001ba4f631dc0)
+
+appinfo!AipGetTokenForService+0x334
+
+
+.process /p /r ffffc68542d962c0
+
+bp consent!winmain;
+bp consent!WinMain+0x11e5;
+bp consent!CuiCheckElevationAutoApprovalMedium;
+bp consent!CuiGetTokenForApp;
+bp consent!CuipGetParameters;
+bp consent!GetConsent;
+bp consent!CuiPlayConsentLaunchedSound
+
+
+bp appinfo!RAiGetTokenForCOM
+bp appinfo!AiBuildCOMParams
+bp appinfo!AipGetTokenForService
+bp appinfo!AiCheckLUA
+bp appinfo!AiLaunchConsentUI
+bp appinfo!AiLaunchProcess
+
+
+
+# rpcss
+bp ole32!CoAicGetTokenForCOM
+bp rpcss!ActivateFromPropertiesPreamble
+bp rpcss!SCMActivatorCreateInstance
+
+
+     0 d <link alt="be 0" cmd="be 0"><u>Enable</u></link> <link alt="bc 0" cmd="bc 0"><u>Clear</u></link>  00007ff9`21f5b486     0001 (0001) RPCRT4!Invoke+0x46 ".echo 'rpcrt4!Invoke Function:'; r @r10; u r10 l5;gc"
+     1 d <link alt="be 1" cmd="be 1"><u>Enable</u></link> <link alt="bc 1" cmd="bc 1"><u>Clear</u></link>  00007ff9`21f3dfc0     0001 (0001) RPCRT4!NdrServerCall2 "!NdrServerCall2"
+     2 d <link alt="be 2" cmd="be 2"><u>Enable</u></link> <link alt="bc 2" cmd="bc 2"><u>Clear</u></link>  00007ff9`205b5199  [<link alt=".open -a 7ff9205b5199" cmd=".open -a 7ff9205b5199"><u>com\ole32\dll\dll.cpp</u></link> @ 446]     0001 (0001) ole32!CoAicGetTokenForCOM+0x69
+     3 d <link alt="be 3" cmd="be 3"><u>Enable</u></link> <link alt="bc 3" cmd="bc 3"><u>Clear</u></link>  00007ff9`21ee24a0     0001 (0001) RPCRT4!NdrClientCall2 "!NdrClientCall2;"
+     4 d <link alt="be 4" cmd="be 4"><u>Enable</u></link> <link alt="bc 4" cmd="bc 4"><u>Clear</u></link>  00007ff9`1d74df30     0001 (0001) rpcss!_Connect ".echo 'rpcss!_Connect Para3:';du @r8;"
+     5 d <link alt="be 5" cmd="be 5"><u>Enable</u></link> <link alt="bc 5" cmd="bc 5"><u>Clear</u></link>  00007ff9`21f260d0     0001 (0001) RPCRT4!LRPC_SCALL::HandleRequest ".echo 'HandleRequest';r @rdx;r@r8;g"
+     6 d <link alt="be 6" cmd="be 6"><u>Enable</u></link> <link alt="bc 6" cmd="bc 6"><u>Clear</u></link>  00007ff9`205b5130  [<link alt=".open -a 7ff9205b5130" cmd=".open -a 7ff9205b5130"><u>com\ole32\dll\dll.cpp</u></link> @ 433]     0001 (0001) ole32!CoAicGetTokenForCOM
+     7 e <link alt="bd 7" cmd="bd 7"><u>Disable</u></link> <link alt="bc 7" cmd="bc 7"><u>Clear</u></link>  00007ff8`ecab37b0     0001 (0001) 
+     8 d <link alt="be 8" cmd="be 8"><u>Enable</u></link> <link alt="bc 8" cmd="bc 8"><u>Clear</u></link>  00007ff9`21f25eb1     0001 (0001) RPCRT4!LRPC_ADDRESS::HandleRequest+0x341 "dt _CLIENT_ID @rbp+8"
+     9 e <link alt="bd 9" cmd="bd 9"><u>Disable</u></link> <link alt="bc 9" cmd="bc 9"><u>Clear</u></link>  0000002e`5ac7f0e0     0001 (0001) 
+    10 e <link alt="bd 10" cmd="bd 10"><u>Disable</u></link> <link alt="bc 10" cmd="bc 10"><u>Clear</u></link>  00007ff9`205b5199  [<link alt=".open -a 7ff9205b5199" cmd=".open -a 7ff9205b5199"><u>com\ole32\dll\dll.cpp</u></link> @ 446]     0001 (0001) ole32!CoAicGetTokenForCOM+0x69
+    11 e <link alt="bd 11" cmd="bd 11"><u>Disable</u></link> <link alt="bc 11" cmd="bc 11"><u>Clear</u></link>  00007ff9`21f3dfde     0001 (0001) RPCRT4!NdrServerCall2+0x1e
+    12 e <link alt="bd 12" cmd="bd 12"><u>Disable</u></link> <link alt="bc 12" cmd="bc 12"><u>Clear</u></link>  00007ff9`21f3dfda     0001 (0001) RPCRT4!NdrServerCall2+0x1a
+
+<link alt=".frame 0n5;dv /t /v" cmd=".frame 0n5;dv /t /v"><u>05</u></link> 0000002e`5aa7eb80 00007ff9`21efe1ca     : 00000000`00000000 00000000`00000000 000001ff`7f185f40 0000002e`5aa7ee78 : RPCRT4!NdrStubCall2Heap+0x342
+<link alt=".frame 0n6;dv /t /v" cmd=".frame 0n6;dv /t /v"><u>06</u></link> 0000002e`5aa7ee10 00007ff9`21f3dfda     : 00000000`00000000 000001ff`7ec3c230 000001ff`7f185f40 00007ff9`223305dd : RPCRT4!NdrStubCall2+0x3a
+<link alt=".frame 0n7;dv /t /v" cmd=".frame 0n7;dv /t /v"><u>07</u></link> 0000002e`5aa7ee40 00007ff9`21f39188     : 000001ff`7ec25c84 000001ff`00000001 000001ff`7f185df0 00000000`00000000 : RPCRT4!NdrServerCall2+0x1a
+<link alt=".frame 0n8;dv /t /v" cmd=".frame 0n8;dv /t /v"><u>08</u></link> 0000002e`5aa7ee70 00007ff9`21f1a3a6     : 00000000`00501100 000001ff`7ec53860 0000002e`5aa7f070 00000000`00000120 : RPCRT4!DispatchToStubInCNoAvrf+0x18
+<link alt=".frame 0n9;dv /t /v" cmd=".frame 0n9;dv /t /v"><u>09</u></link> 0000002e`5aa7eec0 00007ff9`21f19cf8     : 000001ff`7ec53860 00000000`00000000 00000000`00000000 00007ff9`22312303 : RPCRT4!RPC_INTERFACE::DispatchToStubWorker+0x1a6
+<link alt=".frame 0n10;dv /t /v" cmd=".frame 0n10;dv /t /v"><u>0a</u></link> 0000002e`5aa7efa0 00007ff9`21f274bf     : 00000000`00000000 000001ff`0007f1cd 000001ff`7f185df0 00007ff9`2236bc81 : RPCRT4!RPC_INTERFACE::DispatchToStub+0xf8
+<link alt=".frame 0n11;dv /t /v" cmd=".frame 0n11;dv /t /v"><u>0b</u></link> 0000002e`5aa7f010 00007ff9`21f268c8     : 00000000`0008581d 00000000`00000005 00000000`00000000 000001ff`7ec3c230 : RPCRT4!LRPC_SCALL::DispatchRequest+0x31f
+<link alt=".frame 0n12;dv /t /v" cmd=".frame 0n12;dv /t /v"><u>0c</u></link> 0000002e`5aa7f0e0 00007ff9`21f25eb1     : 00000000`0000104c 000001ff`7ec785c0 00000000`00000000 000001ff`00000000 : RPCRT4!LRPC_SCALL::HandleRequest+0x7f8
+
+</DmlText>

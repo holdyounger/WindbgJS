@@ -144,6 +144,9 @@ function initializeScript()
             new host.functionAlias(NdrClientCall2, 'NdrClientCall2'),
             new host.functionAlias(RpcInvoke, 'RpcInvoke'),
             new host.functionAlias(NdrServerCall2, 'NdrServerCall2'),
+            new host.functionAlias(RPCSS_connect, 'RPCSS_connect'),
+            new host.functionAlias(CreateFile, 'CreateFile'),
+            new host.functionAlias(RpcBindingFromStringBindingW, 'RpcBindingFromStringBindingW'),
             new host.functionAlias(CProcess, 'CProcess')
         ];
 }
@@ -329,7 +332,7 @@ function RPCSS_connect() {
     var arry = Array.from(output);
     if(arry.length > 0) {
         if(output[0].toString().includes("consent.exe") == false) {
-            ctl.ExecuteCommand("g",false);
+            // ctl.ExecuteCommand("g",false);
             return;
         }
     }
@@ -473,7 +476,8 @@ function appinfo_SUT_CONSENTUI_PARAM_HEADER(Addr)
     }
 }
 
-function NdrServerCall2(midlAddr, bLog = false) {
+// .printf "-----> NdrServerCall2: rcx@"; r @rcx; .printf "rdx@"; r@rdx;g
+function NdrServerCall2(midlAddr, portAddr, bLog = false) {
     var ctl = host.namespace.Debugger.Utility.Control;
     let RPC_MESSAGE = 0;
     let PORT_MESSAGE = 0;
@@ -484,6 +488,7 @@ function NdrServerCall2(midlAddr, bLog = false) {
     if(midlAddr != null)
     {
         RPC_MESSAGE = midlAddr;
+        // PORT_MESSAGE = portAddr;
     }
     else
     {
@@ -525,8 +530,6 @@ let dealNdrServerCall2 = function(RPC_MESSAGE, PORT_MESSAGE, bLog = false) {
         ctl.ExecuteCommand("dt _PORT_MESSAGE "+ Hex(PORT_MESSAGE) ,false);
         
         ctl.ExecuteCommand("dt _CLIENT_ID "+ Hex(PORT_MESSAGE+0x8) ,false);
-
-
     }
 
     // para1
@@ -709,7 +712,7 @@ let dealNdrClientCall2 = function(bLog, addr_stub, addr_fmtStr = 0) {
         CallInfo.includes("{e60c73e6-88f9-11cf-9af1-0020af6e72f4}:4") || // combase!BulkUpdateOIDs
         CallInfo.includes("{00000132-0000-0000-c000-000000000046}:4") // rpcss!CServerListEntry::CallServer
         ) {
-        ctl.ExecuteCommand("g", false);
+        // ctl.ExecuteCommand("g", false);
     }
 }
 
@@ -724,7 +727,7 @@ let dealStub = function(addr_stub, bLogCaller = true, bLog = false) {
 
         if(RpcInterfaceInformation == 0) {
             Logln("RpcInterfaceInformation is NULL");
-            ctl.ExecuteCommand("g;", false);
+            // ctl.ExecuteCommand("g;", false);
             return;
         }
 
@@ -831,4 +834,56 @@ let dealFormat = function(addr_fmtStr, bLog = false) {
     }
 
     return CallInfo;
+}
+
+function CreateFile() {
+    let Regs = host.currentThread.Registers.User;
+    let ctl = host.namespace.Debugger.Utility.Control;
+
+    var fileName = ReadWstring(Regs.rcx);
+
+/*
+    if(fileName.toString().includes("dll")
+    || fileName.toString().includes("VMCI")
+    || fileName.toString().includes("exe")
+    || fileName.toString().includes("pdb")
+    || fileName.toString().includes("log")
+    || fileName.toString().includes("vmhgfs")
+    || fileName.toString().includes("Volume{157dd7c5-d95a-4dd3-ad66-452f2432390b}")
+    ) {
+        ctl.ExecuteCommand("g");
+        return null;
+    }
+
+*/
+
+    Logln("CreateFileName is:"+ fileName);
+    if(fileName.includes("epmapper")) {
+    } else {
+        Logln("CreateFileName is not i want");
+        return ctl.ExecuteCommand("g");
+    }
+}
+
+function RpcBindingFromStringBindingW() {
+    let Regs = host.currentThread.Registers.User;
+    let ctl = host.namespace.Debugger.Utility.Control;
+
+    var fileName = ReadWstring(Regs.rcx);
+
+    Logln("Protocol:NetworkAddr[Endpoint]:" + fileName);
+
+    if(fileName.toString().includes("localhost")) {
+    } else {
+        var timeout = ctl.ExecuteCommand(".time");
+        CallPrintf(
+            timeout[0].split('time:')[1], 
+            "RpcBindingFromStringBindingW() Stack", 
+            "dx -r1 Debugger.State.Scripts.CodeFlow.Contents.host.currentThread.Stack.Frames", 
+            "");
+
+        ctl.ExecuteCommand("gc", false);
+
+        return null;
+    }
 }

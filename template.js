@@ -123,7 +123,7 @@ function read_addr_arch(addr)
  
 function template()
 {
-    CallPrintf("#1. JavaScript plugin Template:", "CodeFlow", "dx Debugger.State.Scripts.dbgtools.Contents");
+    CallPrintf("#1. JavaScript plugin Template:", "CodeFlow", "dx Debugger.State.Scripts.CodeFlow.Contents");
 }
  
 function initializeScript()

@@ -145,7 +145,7 @@ function searchMemory(startAddress, length, str, isUnicode) {
         return
     }
 
-    const command = isUnicode ? `s -u ${startAddress} L${length} "${str}"` : `s -a ${startAddress} L${length} "${str}"`;
+    const command = isUnicode ? `s -a ${startAddress} L${length} "${str}"` : `s -a ${startAddress} L${length} "${str}"`;
 
     // Logln("[Search] command:" + command);
 
@@ -157,6 +157,7 @@ function searchMemory(startAddress, length, str, isUnicode) {
     let Regs = host.currentThread.Registers.User;
 */
 //dx -r1 Debugger.State.Scripts.CodeFlow.Contents.host.currentProcess.Memory.ManagedHeap
+// !SearchString("DnrspSDK32")
 function SearchString(str) {
     Logln("Input:"+str);
 
@@ -164,7 +165,7 @@ function SearchString(str) {
     var output = ctl.ExecuteCommand("!address"); // -c:\".echo %1 %3 %5\"
     // var output = ctl.ExecuteCommand("!address -f:PAGE_EXECUTE_READWRITE "); // -c:\".echo %1 %3 %5\"
 
-    var array = output.ToArray();
+    var array = output;
     for(var line of array) {
         // Logln(line);
         if(line.toString().includes("MEM_")) {
